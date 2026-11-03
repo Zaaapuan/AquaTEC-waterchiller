@@ -126,14 +126,24 @@ void TaskControl(void *pvParameters) {
         // 1. Ambil salinan state sistem terbaru secara aman
         SystemState state = sharedDataGet();
 
-        // 2. Evaluasi Proteksi Overheat TERLEBIH DAHULU (Safety trumps PID!)
-        SafetyDecision safety = safetyEvaluate(
-            state.heatsinkTemp, 
-            state.heatsinkSensorOk, 
-            state.waterTemp, 
-            state.waterSensorOk, 
-            state.sensorDataStale
-        );
+        // 2. Evaluasi Proteksi Overheat setelah pembacaan sensor pertama tersedia.
+        // Selama startup, aktuator tetap OFF tanpa mengubah status menjadi CRITICAL.
+        SafetyDecision safety;
+        if (state.sensorDataReady) {
+            safety = safetyEvaluate(
+                state.heatsinkTemp,
+                state.heatsinkSensorOk,
+                state.waterTemp,
+                state.waterSensorOk,
+                state.sensorDataStale
+            );
+        } else {
+            safety.level = SAFETY_NORMAL;
+            safety.maxPeltierAllowedPct = 0.0f;
+            safety.pumpAllowed = false;
+            safety.forcePeltierOff = true;
+            safety.forcePumpOff = true;
+        }
 
         // 3. Hitung Algoritma Kontrol PID dan Batasan Fisik Peltier
         float rawPid = 0.0f;
@@ -182,8 +192,8 @@ void TaskSensor(void *pvParameters) {
         // Catat riwayat suhu tiap 10 detik untuk grafik canvas di dashboard
         if (millis() - lastHistoryRecordMs >= HISTORY_INTERVAL_MS) {
             lastHistoryRecordMs = millis();
-            if (waterOk) {
-                webServerRecordHistory(waterTemp);
+            if (waterOk || heatsinkOk) {
+                webServerRecordHistory(waterTemp, heatsinkTemp);
             }
         }
 
@@ -317,4 +327,3 @@ void processSerialCommands() {
         Serial.printf("[SERIAL] Perintah tidak dikenal: '%s'. Ketik 'help' untuk panduan.\n", cmd.c_str());
     }
 }
-

@@ -13,15 +13,26 @@ static WebServer s_server(80);
 static Preferences s_prefs;
 
 // Ring buffer untuk riwayat grafik suhu (360 titik = 1 jam terakhir)
-static float s_historyBuffer[HISTORY_CAPACITY];
+static float s_historyBuffer[HISTORY_CAPACITY];   // Riwayat Suhu Air
+static float s_heatsinkHistory[HISTORY_CAPACITY]; // Riwayat Suhu Heatsink
 static uint16_t s_historyHead = 0;
 static uint16_t s_historyCount = 0;
 
-void webServerRecordHistory(float waterTemp) {
-    if (isnan(waterTemp) || waterTemp < -40.0f || waterTemp > 100.0f) {
+void webServerRecordHistory(float waterTemp, float heatsinkTemp) {
+    bool validWater = (!isnan(waterTemp) && waterTemp >= -40.0f && waterTemp <= 100.0f);
+    bool validHs = (!isnan(heatsinkTemp) && heatsinkTemp >= -40.0f && heatsinkTemp <= 125.0f);
+
+    if (!validWater && !validHs) {
         return;
     }
-    s_historyBuffer[s_historyHead] = waterTemp;
+
+    // Ambil nilai sebelumnya jika salah satu sensor sempat gagal baca sekilas
+    float prevWater = (s_historyCount > 0) ? s_historyBuffer[(s_historyHead + HISTORY_CAPACITY - 1) % HISTORY_CAPACITY] : 25.0f;
+    float prevHs = (s_historyCount > 0) ? s_heatsinkHistory[(s_historyHead + HISTORY_CAPACITY - 1) % HISTORY_CAPACITY] : 30.0f;
+
+    s_historyBuffer[s_historyHead] = validWater ? waterTemp : prevWater;
+    s_heatsinkHistory[s_historyHead] = validHs ? heatsinkTemp : prevHs;
+
     s_historyHead = (s_historyHead + 1) % HISTORY_CAPACITY;
     if (s_historyCount < HISTORY_CAPACITY) {
         s_historyCount++;
@@ -140,20 +151,44 @@ static void handleResetFault() {
     s_server.send(200, "application/json", resStr);
 }
 
-// Endpoint: GET /api/history (D6)
+// Endpoint: GET /api/history (D6) - Menyajikan riwayat suhu air dan heatsink
 static void handleHistory() {
-    String json = "[";
+    if (s_server.hasArg("legacy") || s_server.hasArg("water_only")) {
+        // Kompatibilitas mundur jika dipanggil format array tunggal
+        String json = "[";
+        if (s_historyCount > 0) {
+            uint16_t startIndex = (s_historyCount < HISTORY_CAPACITY) ? 0 : s_historyHead;
+            for (uint16_t i = 0; i < s_historyCount; i++) {
+                uint16_t idx = (startIndex + i) % HISTORY_CAPACITY;
+                json += String(s_historyBuffer[idx], 2);
+                if (i < s_historyCount - 1) json += ",";
+            }
+        }
+        json += "]";
+        s_server.send(200, "application/json", json);
+        return;
+    }
+
+    // Format lengkap: objek JSON berisi array suhu air & heatsink
+    String json = "{\"water\":[";
     if (s_historyCount > 0) {
         uint16_t startIndex = (s_historyCount < HISTORY_CAPACITY) ? 0 : s_historyHead;
         for (uint16_t i = 0; i < s_historyCount; i++) {
             uint16_t idx = (startIndex + i) % HISTORY_CAPACITY;
             json += String(s_historyBuffer[idx], 2);
-            if (i < s_historyCount - 1) {
-                json += ",";
-            }
+            if (i < s_historyCount - 1) json += ",";
         }
     }
-    json += "]";
+    json += "],\"heatsink\":[";
+    if (s_historyCount > 0) {
+        uint16_t startIndex = (s_historyCount < HISTORY_CAPACITY) ? 0 : s_historyHead;
+        for (uint16_t i = 0; i < s_historyCount; i++) {
+            uint16_t idx = (startIndex + i) % HISTORY_CAPACITY;
+            json += String(s_heatsinkHistory[idx], 2);
+            if (i < s_historyCount - 1) json += ",";
+        }
+    }
+    json += "]}";
     s_server.send(200, "application/json", json);
 }
 

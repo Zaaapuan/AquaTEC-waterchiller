@@ -60,7 +60,7 @@ void displayShowBoot(const char* ipStr) {
     char line1[17];
     char line2[17];
 
-    snprintf(line1, sizeof(line1), "   AquaTEC v1.3 ");
+    snprintf(line1, sizeof(line1), "   AquaTEC v1.4 ");
     snprintf(line2, sizeof(line2), "%-16.16s", (ipStr != NULL && strlen(ipStr) > 0) ? ipStr : "Menghubungkan...");
 
     s_lcd.setCursor(0, 0);

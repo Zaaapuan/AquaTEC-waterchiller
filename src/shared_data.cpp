@@ -15,6 +15,7 @@ bool sharedDataInit() {
     g_systemState.heatsinkTemp = 0.0f;
     g_systemState.waterSensorOk = false;
     g_systemState.heatsinkSensorOk = false;
+    g_systemState.sensorDataReady = false;
     g_systemState.lastSensorUpdateMs = 0;
 
     g_systemState.setpoint = SETPOINT_DEFAULT;
@@ -52,6 +53,7 @@ void sharedDataUpdateSensors(float water, bool waterOk, float heatsink, bool hea
         g_systemState.waterSensorOk = waterOk;
         g_systemState.heatsinkTemp = heatsink;
         g_systemState.heatsinkSensorOk = heatsinkOk;
+        g_systemState.sensorDataReady = true;
         g_systemState.lastSensorUpdateMs = millis();
         g_systemState.alarmHighTemp = (waterOk && water > WATER_TEMP_MAX_ALARM);
         g_systemState.sensorDataStale = false;
@@ -118,4 +120,3 @@ const char* safetyLevelToString(SafetyLevel level) {
         default:              return "UNKNOWN";
     }
 }
-

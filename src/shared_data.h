@@ -21,6 +21,7 @@ struct SystemState {
     float heatsinkTemp;         // Suhu heatsink Peltier (°C)
     bool  waterSensorOk;        // Status keabsahan sensor air
     bool  heatsinkSensorOk;     // Status keabsahan sensor heatsink
+    bool  sensorDataReady;      // True setelah pembacaan sensor pertama selesai
     uint32_t lastSensorUpdateMs;// Timestamp pembaruan sensor terakhir
 
     // Konfigurasi Pengguna
@@ -57,4 +58,3 @@ void sharedDataUpdateUptime(uint32_t uptimeSec);
 const char* safetyLevelToString(SafetyLevel level);
 
 #endif // SHARED_DATA_H
-
