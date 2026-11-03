@@ -1,0 +1,13 @@
+# PlatformIO & Build output
+.pio/
+.vscode/
+.idea/
+*.pyc
+
+# Sensitif: Kredensial WiFi pribadi
+include/secrets.h
+
+# File sementara & log OS
+.DS_Store
+Thumbs.db
+
