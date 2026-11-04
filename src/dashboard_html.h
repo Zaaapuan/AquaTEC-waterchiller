@@ -96,6 +96,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     padding: 16px;
   }
   .card-title {
+    font-weight: bold;  
     font-size: 0.8rem;
     text-transform: uppercase;
     color: var(--text-muted);
@@ -212,7 +213,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     color: var(--text-primary);
     padding: 10px 12px;
     font-size: 1.1rem;
-    font-family: "JetBrains Mono", monospace;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
   }
   input[type="number"]:focus {
     outline: none;
@@ -280,7 +281,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     display: flex;
     gap: 14px;
     align-items: center;
-    font-size: 0.8rem;
+    font-size: 0.6rem;
     color: var(--text-muted);
     margin-top: 4px;
   }
@@ -291,8 +292,8 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     font-weight: 500;
   }
   .legend-color {
-    width: 12px;
-    height: 12px;
+    width: 6px;
+    height: 8px;
     border-radius: 3px;
     display: inline-block;
   }
@@ -334,7 +335,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     padding: 5px 8px;
     border-radius: 6px;
     font-size: 0.75rem;
-    font-family: "JetBrains Mono", monospace;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
   }
   .chart-info-bar {
     display: flex;
@@ -347,7 +348,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     border: 1px solid #28292d;
     border-radius: 8px;
     margin-bottom: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
     font-size: 0.76rem;
     color: var(--text-muted);
   }
@@ -981,7 +982,7 @@ function drawChart() {
     ctx.stroke();
 
     ctx.textAlign = 'left';
-    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.font = '10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif';
 
     // Koordinat X: Waktu sampling & nomor sampel
     ctx.fillStyle = '#9aa0a6';
@@ -989,18 +990,18 @@ function drawChart() {
 
     // Koordinat Y: Suhu Air
     ctx.fillStyle = '#00E676';
-    ctx.fillText('💧 Suhu Air: ' + wVal.toFixed(1) + ' °C', boxX + 10, boxY + 36);
+    ctx.fillText('Suhu Air: ' + wVal.toFixed(1) + ' °C', boxX + 10, boxY + 36);
 
     // Koordinat Y: Suhu Heatsink
     ctx.fillStyle = '#FF5252';
     const hsStr = (hVal !== null) ? hVal.toFixed(1) + ' °C' : '--.- °C';
-    ctx.fillText('🔥 Suhu Heatsink: ' + hsStr, boxX + 10, boxY + 54);
+    ctx.fillText('Suhu Heatsink: ' + hsStr, boxX + 10, boxY + 54);
 
     // Perbedaan / Selisih Suhu ΔT
     if (hVal !== null) {
       const diff = hVal - wVal;
       ctx.fillStyle = '#FFB300';
-      ctx.fillText('⚡ ΔT Selisih: ' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' °C', boxX + 10, boxY + 72);
+      ctx.fillText('ΔT Selisih: ' + (diff >= 0 ? '+' : '') + diff.toFixed(1) + ' °C', boxX + 10, boxY + 72);
     }
     ctx.restore();
 

@@ -300,7 +300,7 @@ Suhu air masuk ±0,5 °C dari set point dan stabil minimal 30 menit (uji penuh 2
   - D5: tombol Sistem ON/OFF
 - [x] Simpan set point dengan `Preferences` (FR-15, FR-16) supaya tetap setelah ESP32 mati.
 - [x] Jalankan web server di `TaskWeb` (core 0). Baca dan tulis data hanya lewat mutex.
-- [ ] Uji dari HP dan laptop pada WiFi yang sama.
+- [x] Uji dari HP dan laptop pada WiFi yang sama.
 
 ### Selesai jika
 - Ubah set point di HP → LCD ikut berubah ≤ 1 detik (**T17**).
