@@ -189,11 +189,15 @@ void TaskSensor(void *pvParameters) {
         // Tulis data ke shared state
         sharedDataUpdateSensors(waterTemp, waterOk, heatsinkTemp, heatsinkOk);
 
-        // Catat riwayat suhu tiap 10 detik untuk grafik canvas di dashboard
+        // Catat riwayat suhu tiap 10 detik untuk grafik canvas di dashboard & dev mode
         if (millis() - lastHistoryRecordMs >= HISTORY_INTERVAL_MS) {
             lastHistoryRecordMs = millis();
             if (waterOk || heatsinkOk) {
-                webServerRecordHistory(waterTemp, heatsinkTemp);
+                SystemState stCurrent = sharedDataGet();
+                webServerRecordHistory(waterTemp, heatsinkTemp,
+                                       stCurrent.peltierActualPct,
+                                       stCurrent.pidOutput,
+                                       (uint8_t)stCurrent.safetyLevel);
             }
         }
 

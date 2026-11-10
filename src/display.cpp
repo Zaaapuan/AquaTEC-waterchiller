@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include "config.h"
+#include "safety.h"
 
 static LiquidCrystal_I2C s_lcd(LCD_I2C_ADDR, LCD_COLS, LCD_ROWS);
 static bool s_lcdReady = false;
@@ -60,7 +61,7 @@ void displayShowBoot(const char* ipStr) {
     char line1[17];
     char line2[17];
 
-    snprintf(line1, sizeof(line1), "   AquaTEC v1.4 ");
+    snprintf(line1, sizeof(line1), "   AquaTEC v1.6 ");
     snprintf(line2, sizeof(line2), "%-16.16s", (ipStr != NULL && strlen(ipStr) > 0) ? ipStr : "Menghubungkan...");
 
     s_lcd.setCursor(0, 0);
@@ -92,7 +93,11 @@ void displayUpdate(const SystemState &state) {
         // Baris 2: Setpoint: 20.0°C
         // =====================================================================
         if (!state.waterSensorOk || state.sensorDataStale) {
-            snprintf(line1, sizeof(line1), "Suhu Air: ERROR ");
+            if (safetyIsWaterInGrace()) {
+                snprintf(line1, sizeof(line1), "Air: GRACE %2us   ", (unsigned int)safetyGetWaterGraceRemainingSec());
+            } else {
+                snprintf(line1, sizeof(line1), "Suhu Air: ERROR ");
+            }
         } else {
             float wTemp = state.waterTemp;
             if (wTemp > 99.9f) wTemp = 99.9f;
@@ -100,10 +105,14 @@ void displayUpdate(const SystemState &state) {
             snprintf(line1, sizeof(line1), "Suhu Air: %4.1f%cC", wTemp, (char)1);
         }
 
-        float sp = state.setpoint;
-        if (sp > 99.9f) sp = 99.9f;
-        if (sp < 0.0f) sp = 0.0f;
-        snprintf(line2, sizeof(line2), "Setpoint: %4.1f%cC", sp, (char)1);
+        if (state.safetyLevel >= SAFETY_CRITICAL) {
+            snprintf(line2, sizeof(line2), "Status: %-8.8s", (state.safetyLevel == SAFETY_FAULT) ? "FAULT" : "CRITICAL");
+        } else {
+            float sp = state.setpoint;
+            if (sp > 99.9f) sp = 99.9f;
+            if (sp < 0.0f) sp = 0.0f;
+            snprintf(line2, sizeof(line2), "Setpoint: %4.1f%cC", sp, (char)1);
+        }
 
     } else {
         // =====================================================================
@@ -113,7 +122,11 @@ void displayUpdate(const SystemState &state) {
         // Catatan revisi: Persentase daya PID tidak ditampilkan di LCD
         // =====================================================================
         if (!state.heatsinkSensorOk) {
-            snprintf(line1, sizeof(line1), "Heatsink: ERROR ");
+            if (safetyIsHeatsinkInGrace()) {
+                snprintf(line1, sizeof(line1), "HS: GRACE %2us   ", (unsigned int)safetyGetHeatsinkGraceRemainingSec());
+            } else {
+                snprintf(line1, sizeof(line1), "Heatsink: ERROR ");
+            }
         } else {
             float hsTemp = state.heatsinkTemp;
             if (hsTemp > 99.9f) hsTemp = 99.9f;

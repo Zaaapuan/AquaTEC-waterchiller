@@ -37,42 +37,52 @@ void controlStep(const SystemState &state,
                  bool &outPump) {
     uint32_t now = millis();
 
-    // 1. Cek Saklar Sistem Utama (ON/OFF dari Dashboard)
-    if (!state.systemEnabled) {
+    // 1. Cek Saklar Sistem Utama dan Kondisi Kritis Darurat
+    // HANYA dalam kondisi CRITICAL, FAULT, atau sistem dinonaktifkan manual,
+    // seluruh aktuator direset ke 0% seketika untuk proteksi keselamatan mutlak.
+    bool isCritical = (safety.level == SAFETY_CRITICAL || safety.level == SAFETY_FAULT);
+    if (!state.systemEnabled || isCritical) {
         s_peltierRunning = false;
         s_currentRampedPct = 0.0f;
+        s_lastSwitchTimeMs = now;
         outRawPid = 0.0f;
         outPeltierPct = 0.0f;
         outPump = false;
         return;
     }
 
-    // 2. Evaluasi Input Suhu untuk PID
+    // 2. Evaluasi Input Suhu untuk PID & Target Daya Peltier
+    float targetPower = 0.0f;
+
     if (!state.waterSensorOk || state.sensorDataStale) {
-        // Sensor air bermasalah: matikan aktuator
-        s_peltierRunning = false;
-        s_currentRampedPct = 0.0f;
-        outRawPid = 0.0f;
-        outPeltierPct = 0.0f;
-        outPump = false;
-        return;
-    }
-
-    // Update Setpoint dan Input ke Controller
-    s_pidSetpoint = (double)state.setpoint;
-    s_pidInput = (double)state.waterTemp;
-
-    // Jika suhu air sudah lebih dingin atau sama dengan set point, PID output 0 (FR-12)
-    if (state.waterTemp <= state.setpoint) {
-        s_pidOutput = 0.0;
+        // Sensor air terlepas/senggol atau data sensor macet
+        if (safetyIsWaterInGrace()) {
+            // Masih dalam batas toleransi / grace period (kabel tersenggol < 30 detik):
+            // JANGAN langsung reset ke 0%! Pertahankan daya aktual yang sedang berjalan
+            targetPower = s_currentRampedPct;
+            outRawPid = s_currentRampedPct;
+        } else {
+            // Grace period habis (> 30 detik): arahkan target ke 0%, turun bertahap lewat soft-ramp
+            targetPower = 0.0f;
+            outRawPid = 0.0f;
+        }
     } else {
-        s_pid.Compute();
-    }
+        // Sensor air normal: Update Setpoint dan Input ke Controller
+        s_pidSetpoint = (double)state.setpoint;
+        s_pidInput = (double)state.waterTemp;
 
-    outRawPid = (float)s_pidOutput;
+        // Jika suhu air sudah lebih dingin atau sama dengan set point, PID output 0 (FR-12)
+        if (state.waterTemp <= state.setpoint) {
+            s_pidOutput = 0.0;
+        } else {
+            s_pid.Compute();
+        }
+
+        outRawPid = (float)s_pidOutput;
+        targetPower = outRawPid;
+    }
 
     // 3. Batasi Daya Sesuai Keputusan Modul Safety (Safety trumps PID!)
-    float targetPower = outRawPid;
     if (targetPower > safety.maxPeltierAllowedPct) {
         targetPower = safety.maxPeltierAllowedPct;
     }
@@ -95,45 +105,47 @@ void controlStep(const SystemState &state,
             targetPower = 0.0f;
         }
     } else {
-        // Mematikan Peltier jika daya turun di bawah 5% (FR-08) atau proteksi darurat
+        // Jika daya turun di bawah 5% (FR-08) atau proteksi meminta nonaktif:
+        // Arahkan targetPower ke 0.0f, TETAPI JANGAN langsung nolkan s_currentRampedPct seketika!
+        // Biarkan proses Soft-Ramp di Langkah 5 menurunkan daya perlahan (tidak langsung reset ke 0%).
         if (targetPower < PELTIER_OFF_POWER_PCT || safety.forcePeltierOff || safety.maxPeltierAllowedPct <= 0.0f) {
-            // Jika proteksi kritis/fault atau force off: matikan seketika tanpa tunda!
-            if (safety.forcePeltierOff || safety.maxPeltierAllowedPct <= 0.0f) {
-                s_peltierRunning = false;
-                s_lastSwitchTimeMs = now;
-                targetPower = 0.0f;
-            } else {
-                // Untuk siklus normal, hormati jeda minimum 30 detik
-                if (now - s_lastSwitchTimeMs >= (PELTIER_MIN_SWITCH_SEC * 1000UL)) {
-                    s_peltierRunning = false;
-                    s_lastSwitchTimeMs = now;
-                    targetPower = 0.0f;
-                }
-            }
+            targetPower = 0.0f;
         }
     }
 
-    // 5. Soft-Start: Batasi Kenaikan Daya Maks. 5% per Detik (FR-10)
-    if (!s_peltierRunning || safety.forcePeltierOff || safety.maxPeltierAllowedPct <= 0.0f) {
-        // Jika kondisi darurat atau mati, langsung nolkan
-        s_currentRampedPct = 0.0f;
+    // 5. Soft-Start & Soft-Ramp Down (Peltier tidak langsung reset ke 0% selagi tidak CRITICAL)
+    // Batasi laju perubahan daya maks. 5% per detik (PELTIER_SOFT_START_RAMP)
+    float delta = targetPower - s_currentRampedPct;
+    if (delta > PELTIER_SOFT_START_RAMP) {
+        s_currentRampedPct += PELTIER_SOFT_START_RAMP;
+    } else if (delta < -PELTIER_SOFT_START_RAMP) {
+        s_currentRampedPct -= PELTIER_SOFT_START_RAMP;
     } else {
-        float delta = targetPower - s_currentRampedPct;
-        if (delta > PELTIER_SOFT_START_RAMP) {
-            s_currentRampedPct += PELTIER_SOFT_START_RAMP;
-        } else if (delta < -PELTIER_SOFT_START_RAMP) {
-            s_currentRampedPct -= PELTIER_SOFT_START_RAMP;
-        } else {
-            s_currentRampedPct = targetPower;
+        s_currentRampedPct = targetPower;
+    }
+
+    // Hanya jika daya sudah benar-benar ramp-down mencapai 0.0%, matikan status running
+    if (s_currentRampedPct <= 0.0f && targetPower <= 0.0f) {
+        s_currentRampedPct = 0.0f;
+        if (s_peltierRunning) {
+            s_peltierRunning = false;
+            s_lastSwitchTimeMs = now;
         }
     }
 
     outPeltierPct = s_currentRampedPct;
 
-    // 6. Logika Pompa Air 5V (FR-13 & Proteksi)
-    // Pompa aktif jika sistem enabled, diizinkan safety (NORMAL), dan tidak force off
-    if (state.systemEnabled && safety.pumpAllowed && !safety.forcePumpOff) {
-        outPump = true;
+    // 6. Logika Pompa Air 5V (FR-13 & Revisi Pengguna)
+    // Jika status safety NORMAL: Pompa TETAP berada di 100% (ON) selama sistem aktif!
+    // Pada level selain NORMAL: patuhi izin modul safety
+    if (state.systemEnabled) {
+        if (safety.level == SAFETY_NORMAL) {
+            outPump = true; // Selalu 100% saat status safety NORMAL
+        } else if (safety.pumpAllowed && !safety.forcePumpOff) {
+            outPump = true;
+        } else {
+            outPump = false;
+        }
     } else {
         outPump = false;
     }

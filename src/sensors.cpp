@@ -17,10 +17,13 @@ static uint8_t s_heatsinkConsecutiveErrors = 0;
 static float s_lastValidWaterTemp = 25.0f;
 static float s_lastValidHeatsinkTemp = 30.0f;
 
-#if SIMULATION_MODE
-static bool s_simHeatsinkEnabled = false;
+// Variabel status simulasi & pengujian proteksi
+static bool  s_simHeatsinkEnabled = false;
 static float s_simHeatsinkTemp = 25.0f;
-#endif
+static bool  s_simWaterEnabled = false;
+static float s_simWaterTemp = 25.0f;
+static bool  s_simHeatsinkForceError = false;
+static bool  s_simWaterForceError = false;
 
 void sensorsInit() {
     dallasWater.begin();
@@ -54,6 +57,19 @@ static bool isReadingValid(float temp) {
 }
 
 bool sensorsReadWater(float &outTemp) {
+    if (s_simWaterForceError) {
+        s_waterConsecutiveErrors = SENSOR_MAX_ERRORS;
+        outTemp = -127.0f;
+        return false;
+    }
+
+    if (s_simWaterEnabled) {
+        s_waterConsecutiveErrors = 0;
+        s_lastValidWaterTemp = s_simWaterTemp;
+        outTemp = s_simWaterTemp;
+        return true;
+    }
+
     float raw = dallasWater.getTempCByIndex(0);
 
     if (isReadingValid(raw)) {
@@ -75,12 +91,18 @@ bool sensorsReadWater(float &outTemp) {
 }
 
 bool sensorsReadHeatsink(float &outTemp) {
-#if SIMULATION_MODE
+    if (s_simHeatsinkForceError) {
+        s_heatsinkConsecutiveErrors = SENSOR_MAX_ERRORS;
+        outTemp = -127.0f;
+        return false;
+    }
+
     if (s_simHeatsinkEnabled) {
+        s_heatsinkConsecutiveErrors = 0;
+        s_lastValidHeatsinkTemp = s_simHeatsinkTemp;
         outTemp = s_simHeatsinkTemp;
         return true;
     }
-#endif
 
     float raw = dallasHeatsink.getTempCByIndex(0);
 
@@ -100,7 +122,6 @@ bool sensorsReadHeatsink(float &outTemp) {
     }
 }
 
-#if SIMULATION_MODE
 void sensorsSetHeatsinkSimulation(bool enabled, float temp) {
     s_simHeatsinkEnabled = enabled;
     s_simHeatsinkTemp = temp;
@@ -113,5 +134,40 @@ bool sensorsIsHeatsinkSimulated() {
 float sensorsGetSimulatedHeatsinkTemp() {
     return s_simHeatsinkTemp;
 }
-#endif
+
+void sensorsSetWaterSimulation(bool enabled, float temp) {
+    s_simWaterEnabled = enabled;
+    s_simWaterTemp = temp;
+}
+
+bool sensorsIsWaterSimulated() {
+    return s_simWaterEnabled;
+}
+
+float sensorsGetSimulatedWaterTemp() {
+    return s_simWaterTemp;
+}
+
+void sensorsSetForceError(bool heatsinkErr, bool waterErr) {
+    s_simHeatsinkForceError = heatsinkErr;
+    s_simWaterForceError = waterErr;
+}
+
+SimulationState sensorsGetSimState() {
+    SimulationState st;
+    st.heatsinkSimEnabled = s_simHeatsinkEnabled;
+    st.heatsinkSimTemp = s_simHeatsinkTemp;
+    st.waterSimEnabled = s_simWaterEnabled;
+    st.waterSimTemp = s_simWaterTemp;
+    st.heatsinkForceError = s_simHeatsinkForceError;
+    st.waterForceError = s_simWaterForceError;
+    return st;
+}
+
+void sensorsResetAllSimulation() {
+    s_simHeatsinkEnabled = false;
+    s_simWaterEnabled = false;
+    s_simHeatsinkForceError = false;
+    s_simWaterForceError = false;
+}
 

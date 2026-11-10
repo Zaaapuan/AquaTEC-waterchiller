@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| **Versi** | 1.3 (draft). Revisi: sensor heatsink pindah ke GPIO 2, SDA LCD pindah ke GPIO 23 |
-| **Tanggal** | 3 November 2026 (revisi). Versi awal: 29 Oktober 2026 |
+| **Versi** | 1.6 (Final Release). Pembaruan: Developer Mode (`/dev`), MATLAB Figure Telemetry Engine, Web Simulation Workbench, Quick Test 1-Click, & Data Export |
+| **Tanggal** | 10 November 2026 (revisi). Versi awal: 29 Oktober 2026 |
 | **Mata kuliah** | Sistem Embedded |
-| **Target pembaca** | Coder pemula (belum biasa membuat proyek embedded multi-bagian) |
+| **Target pembaca** | Coder pemula & Penguji Sistem Embedded |
 | **Tag penting** | `[ASUMSI]` = hal yang belum Anda tentukan, saya isi dengan nilai wajar. Boleh diganti. |
 
 ---
@@ -270,19 +270,34 @@ MQTT bisa ditambahkan nanti sebagai pengembangan (lihat bagian 11).
 | D6 | Grafik suhu 1 jam terakhir (ring buffer 360 titik, gambar pakai `<canvas>` tanpa library eksternal) | Sebaiknya ada |
 | D7 | Tombol **Reset FAULT** | Sebaiknya ada |
 | D8 | Peringatan jika sensor error atau suhu air > 32 °C | Sebaiknya ada |
+| D9 | **Developer Mode & Telemetri Analisis** (Halaman `/dev` terpisah di footer) | Baru (v1.6) |
+| D10| **MATLAB-Style Figure Canvas** (Background putih murni, `box on`, inward ticks, dotted grid) | Baru (v1.6) |
+| D11| **Ekspor Figure PNG 300 DPI** (Resolusi 1920×1080 untuk publikasi/laporan teknik) | Baru (v1.6) |
+| D12| **Ekspor Data Mentah CSV** (Riwayat suhu air, heatsink, PID, Peltier, dan level safety) | Baru (v1.6) |
+| D13| **Workbench Simulasi Sensor** (Injeksi suhu heatsink, air bebas batas, & simulasi sensor error) | Baru (v1.6) |
+| D14| **1-Click Quick Test Skenario** (Uji WARNING, CRITICAL, Force FAULT, & Reset Safety-Sensor) | Baru (v1.6) |
 
 Halaman web dibuat dengan HTML + JavaScript biasa yang memanggil API (`fetch`) tiap 2 detik. Tidak butuh framework.
 
 ### 5.3 API
 
-| Method | Endpoint | Fungsi | Contoh |
+| Method | Endpoint | Fungsi | Contoh Payload / Respons |
 |---|---|---|---|
-| GET | `/` | Halaman dashboard | |
-| GET | `/api/status` | Status lengkap (JSON) | lihat bawah |
+| GET | `/` | Halaman dashboard utama pengguna | HTML Web App |
+| GET | `/api/status` | Status lengkap sistem (JSON) | lihat bawah |
 | POST | `/api/setpoint` | Ubah set point | `{"value": 27.5}` |
 | POST | `/api/power` | Sistem ON/OFF | `{"enabled": true}` |
-| POST | `/api/reset-fault` | Reset status FAULT | |
-| GET | `/api/history` | Data grafik | `[27.9, 27.8, ...]` |
+| POST | `/api/reset-fault` | Reset status FAULT | `{"success": true}` |
+| GET | `/api/history` | Data riwayat suhu (kompatibel mundur) | `{"water":[...],"heatsink":[...]}` |
+| GET | `/dev` | Halaman antarmuka Developer Mode | HTML MATLAB Figure Telemetry |
+| GET | `/api/dev/state` | Status diagnostik lengkap & timers safety | JSON detail state + timer grace |
+| GET | `/api/dev/history/full` | Data telemetri lengkap 360 titik | JSON array air, heatsink, peltier, pid, safety |
+| GET | `/api/dev/export/csv` | Unduh riwayat pengujian sebagai file CSV | File `aquatec_history.csv` |
+| POST | `/api/dev/sim/heatsink` | Injeksi simulasi suhu heatsink | `{"enabled": true, "temp": 66.0}` |
+| POST | `/api/dev/sim/water` | Injeksi simulasi suhu air bebas rentang | `{"enabled": true, "temp": 18.0}` |
+| POST | `/api/dev/sim/sensor-fail`| Simulasi putus sensor (-127°C) | `{"heatsink": true, "water": false}` |
+| POST | `/api/dev/sim/reset` | Matikan semua simulasi & kembali ke sensor fisik | `{"success": true}` |
+| POST | `/api/dev/safety/force` | Force set level proteksi (NORMAL/WARN/CRIT/FAULT) | `{"level": "FAULT"}` (level NORMAL otomatis reset sensor) |
 
 Contoh respons `/api/status`:
 
@@ -306,6 +321,32 @@ Server menolak set point di luar 20–30 °C dengan respons HTTP 400.
 - Mode utama: terhubung ke WiFi rumah/kampus (SSID dan password di `secrets.h`).
 - Jika gagal terhubung dalam 15 detik: pindah ke **mode Access Point** bernama `AquaTEC` agar dashboard tetap bisa dibuka.
 - Alamat mudah diingat via mDNS: `aquatec.local`.
+
+### 5.5 Developer Mode & Telemetri Gaya MATLAB (v1.6)
+Developer Mode dirancang khusus untuk keperluan analisis engineering, pengambilan data pengujian, dan verifikasi proteksi overheat:
+1. **Estetika MATLAB 2D Line Plot**:
+   - Area Figure dan Axes menggunakan latar belakang putih bersih (`#FFFFFF`).
+   - Frame grafik solid hitam keliling (`box on`).
+   - Penanda sumbu inward ticks (`TickDir: in`) di keempat sisi.
+   - Garis grid halus putus-putus (`grid on`, dotted lines `#D8D8D8`).
+   - Sumbu Y ganda: Kiri untuk Suhu (°C, rentang 10–80°C) dan Kanan untuk Aktuator (%, rentang 0–100%).
+   - Kotak legend khas MATLAB dengan border tipis di pojok kanan atas.
+   - *Data Cursor* interaktif saat kursor melintas di atas kurva.
+2. **Palet Warna Kurva MATLAB Standar**:
+   - Suhu Air: `#0072BD` (MATLAB Blue)
+   - Suhu Heatsink: `#D95319` (MATLAB Orange)
+   - Setpoint: `#77AC30` (MATLAB Green, garis putus-titik)
+   - Daya Peltier (PWM %): `#4DBEEE` (MATLAB Cyan)
+   - Output PID (%): `#7E2F8E` (MATLAB Purple)
+   - Batas Proteksi (Thresholds): `#A2142F` (Critical 70°C) & `#EDB120` (Warning 60°C).
+3. **Ekspor Siap Publikasi**:
+   - Tombol **Export Figure (PNG)** menghasilkan gambar Full HD (1920×1080) pada standar 300 DPI, siap dilampirkan langsung pada laporan praktikum atau skripsi.
+   - Tombol **Export CSV** menghasilkan file spreadsheet mentah untuk analisis kurva di MATLAB desktop atau Python/Pandas.
+4. **Workbench Simulasi & Quick Test**:
+   - Penguji dapat menginjeksi suhu sembarang tanpa memanaskan elemen Peltier asli.
+   - Tombol 1-klik untuk menguji respon WARNING, CRITICAL, dan Force FAULT Instant.
+   - Tombol **Reset Safety & Sensor** otomatis memulihkan state machine ke NORMAL dan mengembalikan pembacaan ke sensor fisik riil (mencegah nilai suhu nyangkut).
+   - Tautan navigasi Developer Mode ditempatkan secara rapi di area **footer** dashboard utama agar tidak mengganggu antarmuka pengguna awam.
 
 ---
 
@@ -461,6 +502,8 @@ Tujuan Anda tetap tercapai: Peltier tidak mati total, sehingga pemulihannya cepa
 | T16 | Nyalakan PSU dengan ESP32 belum aktif / dicabut | Fan tetap berputar, Peltier dan pompa mati |
 | T17 | Ubah set point dari dashboard | LCD menampilkan suhu air, set point, suhu heatsink, dan level proteksi sesuai dashboard dalam ≤ 1 detik |
 | T18 | Cabut kabel LCD saat sistem berjalan | Kontrol dan proteksi tetap berjalan normal, tidak ada restart |
+| T19 | Buka Developer Mode (`/dev`) & unduh Figure PNG + CSV | Figure terunduh dalam format 1920×1080 putih bersih gaya MATLAB, CSV berisi riwayat telemetri lengkap |
+| T20 | Uji proteksi via Quick Test Web Dev Mode | Respon proteksi aktif seketika, tombol Reset Safety memulihkan sistem ke NORMAL & me-reset simulasi kembali ke sensor fisik |
 
 ### 9.2 Cara tuning PID (langkah mudah)
 

@@ -15,12 +15,27 @@ void sensorsRequestTemperatures();
 bool sensorsReadWater(float &outTemp);
 bool sensorsReadHeatsink(float &outTemp);
 
-// Mode Simulasi (FR-17) untuk pengujian proteksi overheat
-#if SIMULATION_MODE
+// Mode Simulasi (FR-17 & Developer Mode) untuk pengujian proteksi overheat
+struct SimulationState {
+    bool  heatsinkSimEnabled;
+    float heatsinkSimTemp;
+    bool  waterSimEnabled;
+    float waterSimTemp;
+    bool  heatsinkForceError;
+    bool  waterForceError;
+};
+
 void sensorsSetHeatsinkSimulation(bool enabled, float temp);
 bool sensorsIsHeatsinkSimulated();
 float sensorsGetSimulatedHeatsinkTemp();
-#endif
+
+void sensorsSetWaterSimulation(bool enabled, float temp);
+bool sensorsIsWaterSimulated();
+float sensorsGetSimulatedWaterTemp();
+
+void sensorsSetForceError(bool heatsinkErr, bool waterErr);
+SimulationState sensorsGetSimState();
+void sensorsResetAllSimulation();
 
 #endif // SENSORS_H
 

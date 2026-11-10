@@ -58,6 +58,7 @@
 #define WATER_TEMP_MAX_ALARM    32.0f   // Suhu air > 32°C memicu alarm visual di dashboard
 #define SENSOR_TIMEOUT_SEC      5       // Data > 5 detik tanpa pembaruan dianggap invalid
 #define SENSOR_MAX_ERRORS       3       // 3 kegagalan baca berurutan menandai sensor rusak
+#define SENSOR_GRACE_PERIOD_SEC 30      // Toleransi sensor terlepas/tercabut sebelum CRITICAL (detik)
 
 // =============================================================================
 // PARAMETER KONTROL PID & PROTEKSI PELTIER (PRD Bagian 6.2)
@@ -94,6 +95,11 @@
 
 // Watchdog Timer (ESP Task WDT)
 #define WDT_TIMEOUT_SECONDS     10
+
+// =============================================================================
+// DEVELOPER MODE (Analisis & Pengujian Proteksi)
+// =============================================================================
+#define DEV_MODE_ENABLED        true
 
 #endif // CONFIG_H
 

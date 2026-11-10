@@ -1,6 +1,6 @@
 # AquaTEC: ESP32 Aquascape Water Temperature Control System
 
-AquaTEC adalah sistem pengatur suhu air aquascape berbasis mikrokontroler **ESP32** menggunakan elemen pendingin **Thermoelectric Cooler (Peltier TEC1-12706)**, algoritma **PID Controller**, dan **Proteksi Overheat Bertahap Multi-Tingkat**. Sistem ini dilengkapi antarmuka ganda: layar **LCD Karakter 16×2 I2C** langsung pada alat dan **Web Dashboard Modern Responsif** (Wi-Fi lokal) bergaya estetika Generative AI (Dark Theme + AI Teal `#00A67E`).
+AquaTEC adalah sistem pengatur suhu air aquascape berbasis mikrokontroler **ESP32** menggunakan elemen pendingin **Thermoelectric Cooler (Peltier TEC1-12706)**, algoritma **PID Controller**, dan **Proteksi Overheat Bertahap Multi-Tingkat**. Sistem ini dilengkapi antarmuka ganda: layar **LCD Karakter 16×2 I2C** langsung pada alat dan **Web Dashboard Modern Responsif** (Wi-Fi lokal) bergaya estetika Generative AI (Dark Theme + AI Teal `#00A67E`), serta **Developer Mode & MATLAB Telemetry Engine** terintegrasi.
 
 ---
 
@@ -23,9 +23,16 @@ AquaTEC adalah sistem pengatur suhu air aquascape berbasis mikrokontroler **ESP3
   - *Soft-start*: laju perubahan daya dibatasi maksimum 5% per detik.
   - *Freeze protection*: Peltier otomatis mati jika suhu air < 20°C.
 - **Web Dashboard Mandiri (Single Page Application)**:
-  - Disimpan langsung di dalam memori Flash ESP32 (`PROGMEM`, ukuran < 15 KB).
-  - Grafik riwayat suhu 1 jam terakhir menggunakan HTML5 `<canvas>` murni (tanpa ketergantungan internet/CDN eksternal).
+  - Disimpan langsung di dalam memori Flash ESP32 (`PROGMEM`, ukuran hemat).
+  - Grafik riwayat suhu 1 jam terakhir menggunakan HTML5 `<canvas>` interaktif dengan zoom & pan tanpa dependensi luar.
   - Kontrol set point (20.0 - 30.0 °C), tombol ON/OFF sistem, dan tombol Reset FAULT.
+- **Developer Mode & MATLAB-Style Analysis (`/dev`)**:
+  - **MATLAB Publication Figure**: Canvas berlatar putih murni (`#FFFFFF`) dengan border hitam penuh (`box on`), inward ticks (`TickDir: in`), grid putus-putus (`grid on`), label ganda (°C & %), dan kotak legenda khas MATLAB.
+  - **MATLAB Color Palette**: Suhu Air (`#0072BD`), Heatsink (`#D95319`), Setpoint (`#77AC30`), Peltier PWM (`#4DBEEE`), PID (`#7E2F8E`), Limit Proteksi (`#A2142F` & `#EDB120`).
+  - **Ekspor Gambar 300 DPI**: Tombol *Export Figure (PNG)* me-render grafik resolusi tinggi (1920×1080) siap pakai untuk laporan teknik, jurnal, atau skripsi.
+  - **Ekspor Data Mentah**: Tombol *Export CSV* untuk analisis kuantitatif di MATLAB / Python / Excel.
+  - **Workbench Simulasi Sensor**: Injeksi suhu Heatsink, injeksi suhu Air bebas batas (termasuk <20°C atau >32°C), dan simulasi putus kabel sensor (-127°C).
+  - **1-Click Quick Test**: Tombol pengujian cepat skenario proteksi: Uji WARNING (66°C), Uji CRITICAL (72°C), **Force FAULT Instant**, Reset Safety & Sensor (otomatis me-reset simulasi kembali ke sensor fisik), Air Dingin (18°C), dan Air Panas (34°C).
 
 ---
 
@@ -37,7 +44,7 @@ AquaTEC adalah sistem pengatur suhu air aquascape berbasis mikrokontroler **ESP3
 |---|---|---|
 | **Sensor Suhu Air (DS18B20 #1)** | **GPIO 19** | Data line, resistor pull-up 4.7 kΩ ke 3.3V |
 | **Sensor Suhu Heatsink (DS18B20 #2)** | **GPIO 18** | Data line, resistor pull-up 4.7 kΩ ke 3.3V |
-| **Peltier PWM Output** | **GPIO 25* * | Input trigger modul MOSFET JZ-MOS #1 (PWM 5 kHz, 10-bit) |
+| **Peltier PWM Output** | **GPIO 25** | Input trigger modul MOSFET JZ-MOS #1 (PWM 5 kHz, 10-bit) |
 | **Pompa Air (ON/OFF)** | **GPIO 27** | Input trigger modul MOSFET JZ-MOS #2 (Active HIGH) |
 | **LCD I2C SDA** | **GPIO 23** | Pin data I2C (`Wire.begin(23, 22)`) |
 | **LCD I2C SCL** | **GPIO 22** | Pin clock I2C |
@@ -60,22 +67,24 @@ PSU 12V 20A ──┬──▶ Sekring 8A ──▶ JZ-MOS #1 ──▶ Peltier 
 
 ```
 Project Embeded/
-├── platformio.ini              # Konfigurasi PlatformIO & library dependencies
+├── platformio.ini              # Konfigurasi PlatformIO, flags, & library dependencies
 ├── .gitignore                  # Melindungi file secrets.h dan direktori build
 ├── README.md                   # Dokumentasi lengkap sistem
+├── PRD_AquaTEC_Water_Temperature_Control (1).md # Spesifikasi Kebutuhan Produk (PRD)
 ├── include/
-│   ├── config.h                # Seluruh konstanta konfigurasi, pinout, batas suhu, PID
+│   ├── config.h                # Seluruh konstanta konfigurasi, pinout, batas suhu, PID, DevMode
 │   └── secrets.h               # Kredensial Wi-Fi rumah (jangan di-commit ke publik)
 └── src/
     ├── main.cpp                # Setup, inisialisasi task FreeRTOS, Task WDT, serial command
     ├── shared_data.h / .cpp    # SystemState struct, Mutex, thread-safe accessors
     ├── actuators.h / .cpp      # Abstraksi driver MOSFET JZ-MOS (Peltier PWM 5kHz & Pompa)
-    ├── sensors.h / .cpp        # Driver DS18B20 non-blocking + filter validasi FR-03
-    ├── safety.h / .cpp         # State machine proteksi overheat 4 tingkat
+    ├── sensors.h / .cpp        # Driver DS18B20 non-blocking, filter validasi, & modul simulasi
+    ├── safety.h / .cpp         # State machine proteksi overheat 4 tingkat & debug counters
     ├── control.h / .cpp        # PID Controller (REVERSE), histeresis, soft-start
     ├── display.h / .cpp        # Pengendali LCD 16x2 non-flicker, status/error badge
-    ├── web_server.h / .cpp     # REST API endpoint, Wi-Fi Station & SoftAP fallback, NVS Flash
-    └── dashboard_html.h        # Web dashboard SPA dalam PROGMEM (HTML5 Canvas + Inter/Mono font)
+    ├── web_server.h / .cpp     # REST API endpoint, Wi-Fi Station & SoftAP, NVS Flash, Dev Routes
+    ├── dashboard_html.h        # Web dashboard pengguna (SPA, Dark Theme, HTML5 Canvas)
+    └── devmode_html.h          # Developer Mode (MATLAB Figure, Workbench Simulasi, Quick Test)
 ```
 
 ---
@@ -88,7 +97,7 @@ Project Embeded/
 
 ### Langkah-langkah
 1. Buka folder `Project Embeded` di VS Code.
-2. Buka file [include/secrets.h](file:///c:/Users/Noval/Downloads/Project%20Embeded/include/secrets.h) dan sesuaikan SSID serta Password Wi-Fi Anda:
+2. Buka file [include/secrets.h](include/secrets.h) dan sesuaikan SSID serta Password Wi-Fi Anda:
    ```cpp
    #define WIFI_SSID_DEFAULT     "Nama_WiFi_Anda"
    #define WIFI_PASSWORD_DEFAULT "Password_WiFi_Anda"
@@ -100,8 +109,9 @@ Project Embeded/
 
 ---
 
-## 5. Cara Mengakses Web Dashboard
+## 5. Cara Mengakses Web Dashboard & Developer Mode
 
+### 5.1 Dashboard Pengguna Utama (`/`)
 1. **Mode Station (Tersambung ke Wi-Fi Rumah)**:
    - LCD akan menampilkan alamat IP lokal saat boot (misal `192.168.1.50`).
    - Buka browser di ponsel atau laptop yang terhubung ke Wi-Fi yang sama, lalu akses:
@@ -112,13 +122,31 @@ Project Embeded/
    - Sambungkan ponsel/laptop ke Wi-Fi `AquaTEC`.
    - Buka browser dan buka alamat: **`http://192.168.4.1`**.
 
+### 5.2 Developer Mode & Analisis MATLAB (`/dev`)
+- Akses langsung via URL: `http://aquatec.local/dev` (atau `http://<IP_ESP32>/dev`).
+- Atau klik tombol **Developer Mode** yang terletak di area **footer** paling bawah pada Dashboard Utama.
+
 ---
 
-## 6. Prosedur Uji Proteksi Overheat (Simulasi Serial Tanpa Pemanasan Riil)
+## 6. Prosedur Uji Proteksi Overheat & Simulasi
 
-Untuk menguji keandalan sistem tanpa risiko merusak Peltier atau membakar heatsink, gunakan fitur **Mode Simulasi Serial** (`SIMULATION_MODE`):
+Pengujian sistem proteksi dapat dilakukan melalui **dua cara**:
 
-Buka Serial Monitor (115200 baud) dan ketik perintah berikut:
+### Metode A: Melalui Web Developer Mode (Sangat Disarankan & Praktis)
+Buka menu Developer Mode di browser (`/dev`), lalu gunakan panel berikut:
+1. **1-Click Quick Test**:
+   - Klik **Uji WARNING (HS 66°C)** &rarr; Daya Peltier dibatasi &le; 70%, Pompa OFF, Fan ON.
+   - Klik **Uji CRITICAL (HS 72°C)** &rarr; Peltier mati total (0%), Pompa OFF.
+   - Klik **Force FAULT Instant** &rarr; Sistem mengunci ke level FAULT seketika.
+   - Klik **Reset Safety & Sensor** &rarr; Memulihkan level proteksi ke NORMAL dan **otomatis me-reset simulasi kembali membaca sensor fisik DS18B20**.
+   - Klik **Uji Air Dingin (18°C)** &rarr; Menguji fail-safe proteksi beku (Peltier dipaksa OFF jika air < 20°C).
+2. **Workbench Simulasi**:
+   - Masukkan angka suhu sembarang pada input Heatsink atau Suhu Air lalu klik *Injeksi*.
+   - Centang opsi putus kabel sensor untuk menguji respon sensor rusak (-127°C).
+   - Klik tombol merah **Reset Semua Simulasi** untuk kembali ke sensor fisik.
+
+### Metode B: Melalui Serial Monitor
+Ketik perintah berikut pada Serial Monitor (115200 baud):
 
 | Uji | Perintah Serial | Respon Sistem yang Diharapkan |
 |---|---|---|
@@ -146,4 +174,3 @@ Baris 2: HS41 P: 62% NORM
 - `P`: Persentase daya aktual PWM Peltier.
 - `NORM` / `WARN` / `CRIT` / `FALT`: Singkatan status proteksi aktif.
 - Jika sistem dimatikan dari dashboard, baris 2 akan menampilkan: `SISTEM OFF      `.
-

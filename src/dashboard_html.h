@@ -385,6 +385,24 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
     font-size: 0.75rem;
     padding: 16px 0;
   }
+  .dev-mode-link {
+    display: inline-flex;
+    align-items: center;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 4px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.2s;
+  }
+  .dev-mode-link:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: rgba(0, 166, 126, 0.08);
+  }
 </style>
 </head>
 <body>
@@ -392,7 +410,7 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
   <header>
     <div class="logo">
       <h1>AquaTEC</h1>
-      <span class="tag">V.1.4</span>
+      <span class="tag">V.1.6</span>
     </div>
     <div id="safetyBadge" class="badge badge-normal">NORMAL</div>
   </header>
@@ -494,7 +512,14 @@ const char DASHBOARD_HTML[] PROGMEM = R"rawliteral(
   </div>
 
   <footer>
-    AquaTEC Embedded System
+    <div style="display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap;">
+      <span>AquaTEC Embedded System</span>
+      <span style="opacity:0.3;">•</span>
+      <a href="/dev" class="dev-mode-link">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px;"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+        Developer Mode
+      </a>
+    </div>
   </footer>
 </div>
 
@@ -517,8 +542,21 @@ function updateStatus() {
   fetch('/api/status')
     .then(res => res.json())
     .then(data => {
-      document.getElementById('waterTemp').innerText = data.water_temp.toFixed(1);
-      document.getElementById('hsTemp').innerText = data.heatsink_temp.toFixed(1);
+      if (data.water_grace) {
+        document.getElementById('waterTemp').innerText = 'SENS?';
+      } else if (data.water_ok !== undefined && !data.water_ok) {
+        document.getElementById('waterTemp').innerText = 'ERR';
+      } else {
+        document.getElementById('waterTemp').innerText = data.water_temp.toFixed(1);
+      }
+
+      if (data.heatsink_grace) {
+        document.getElementById('hsTemp').innerText = 'SENS?';
+      } else if (data.heatsink_ok !== undefined && !data.heatsink_ok) {
+        document.getElementById('hsTemp').innerText = 'ERR';
+      } else {
+        document.getElementById('hsTemp').innerText = data.heatsink_temp.toFixed(1);
+      }
       document.getElementById('setpointVal').innerText = data.setpoint.toFixed(1);
 
       // Nilai awal pada INPUT adalah nilai terakhir dari set point yang ditetapkan
@@ -558,10 +596,30 @@ function updateStatus() {
       // Alert Banner
       const banner = document.getElementById('alertBanner');
       if (!data.sensor_ok) {
-        banner.style.display = 'block';
-        banner.innerText = 'PERINGATAN: Salah satu sensor DS18B20 terputus atau mengalami gangguan!';
+        if (data.heatsink_grace) {
+          banner.style.display = 'block';
+          banner.style.background = 'rgba(255, 179, 0, 0.2)';
+          banner.style.borderColor = 'var(--amber)';
+          banner.style.color = 'var(--amber)';
+          banner.innerText = 'TOLERANSI SENSOR: Kabel heatsink tersenggol/lepas! Menunggu (' + data.heatsink_grace_rem + 'd) sebelum CRITICAL.';
+        } else if (data.water_grace) {
+          banner.style.display = 'block';
+          banner.style.background = 'rgba(255, 179, 0, 0.2)';
+          banner.style.borderColor = 'var(--amber)';
+          banner.style.color = 'var(--amber)';
+          banner.innerText = 'TOLERANSI SENSOR: Kabel sensor air tersenggol/lepas! Menunggu (' + data.water_grace_rem + 'd) sebelum CRITICAL.';
+        } else {
+          banner.style.display = 'block';
+          banner.style.background = 'rgba(255, 82, 82, 0.2)';
+          banner.style.borderColor = 'var(--red)';
+          banner.style.color = 'var(--red)';
+          banner.innerText = 'PERINGATAN: Salah satu sensor DS18B20 terputus atau mengalami gangguan!';
+        }
       } else if (data.water_temp > 32.0) {
         banner.style.display = 'block';
+        banner.style.background = 'rgba(255, 82, 82, 0.2)';
+        banner.style.borderColor = 'var(--red)';
+        banner.style.color = 'var(--red)';
         banner.innerText = 'ALARM: Suhu air melebihi 32.0 °C! Periksa sistem pendingin.';
       } else {
         banner.style.display = 'none';

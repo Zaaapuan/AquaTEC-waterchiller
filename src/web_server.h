@@ -10,8 +10,10 @@ void webServerInit();
 // Menangani permintaan klien HTTP (dipanggil berulang dalam TaskWeb di Core 0)
 void webServerProcess();
 
-// Mencatat data riwayat suhu air dan heatsink ke dalam ring buffer (dipanggil berkala tiap 10 detik)
-void webServerRecordHistory(float waterTemp, float heatsinkTemp = NAN);
+// Mencatat data riwayat suhu air, heatsink, aktuator, dan safety ke dalam ring buffer
+void webServerRecordHistory(float waterTemp, float heatsinkTemp = NAN,
+                            float peltierPct = 0.0f, float pidOutput = 0.0f,
+                            uint8_t safetyLevel = 0);
 
 #endif // WEB_SERVER_H
 

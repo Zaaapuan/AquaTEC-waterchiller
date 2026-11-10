@@ -28,5 +28,26 @@ bool safetyResetFault(float currentHeatsinkTemp);
 // Mendapatkan level proteksi saat ini
 SafetyLevel safetyGetCurrentLevel();
 
+// Fungsi pemantau status grace period sensor
+bool safetyIsHeatsinkInGrace();
+uint32_t safetyGetHeatsinkGraceRemainingSec();
+bool safetyIsWaterInGrace();
+uint32_t safetyGetWaterGraceRemainingSec();
+
+// Informasi diagnostik Developer Mode
+struct SafetyDebugInfo {
+    SafetyLevel currentLevel;
+    uint32_t warningDurationSec;
+    uint32_t criticalDurationSec;
+    uint8_t  criticalCountInWindow;
+    bool     heatsinkInGrace;
+    uint32_t heatsinkGraceRemSec;
+    bool     waterInGrace;
+    uint32_t waterGraceRemSec;
+};
+
+SafetyDebugInfo safetyGetDebugInfo();
+void safetyForceState(SafetyLevel level);
+
 #endif // SAFETY_H
 
