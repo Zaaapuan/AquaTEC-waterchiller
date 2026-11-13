@@ -73,7 +73,7 @@ Project Embeded/
 ├── PRD_AquaTEC_Water_Temperature_Control (1).md # Spesifikasi Kebutuhan Produk (PRD)
 ├── include/
 │   ├── config.h                # Seluruh konstanta konfigurasi, pinout, batas suhu, PID, DevMode
-│   └── secrets.h               # Kredensial Wi-Fi rumah (jangan di-commit ke publik)
+│   └── secrets.example.h       # Template kredensial Wi-Fi (salin menjadi secrets.h)
 └── src/
     ├── main.cpp                # Setup, inisialisasi task FreeRTOS, Task WDT, serial command
     ├── shared_data.h / .cpp    # SystemState struct, Mutex, thread-safe accessors
@@ -97,11 +97,12 @@ Project Embeded/
 
 ### Langkah-langkah
 1. Buka folder `Project Embeded` di VS Code.
-2. Buka file [include/secrets.h](include/secrets.h) dan sesuaikan SSID serta Password Wi-Fi Anda:
+2. Salin `include/secrets.example.h` menjadi `include/secrets.h`, lalu sesuaikan SSID dan password Wi-Fi Anda:
    ```cpp
    #define WIFI_SSID_DEFAULT     "Nama_WiFi_Anda"
    #define WIFI_PASSWORD_DEFAULT "Password_WiFi_Anda"
    ```
+   `include/secrets.h` diabaikan Git dan jangan diunggah karena berisi kredensial pribadi.
 3. Hubungkan ESP32 DevKit ke komputer lewat kabel USB data.
 4. Klik tombol **PlatformIO: Build** (tanda centang di baris bawah) untuk kompilasi.
 5. Klik tombol **PlatformIO: Upload** (tanda panah kanan) untuk mengunggah program ke ESP32.
