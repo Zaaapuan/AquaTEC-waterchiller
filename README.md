@@ -1,6 +1,6 @@
 # AquaTEC: ESP32 Aquascape Water Temperature Control System
 
-AquaTEC adalah sistem pengatur suhu air aquascape berbasis mikrokontroler **ESP32** menggunakan elemen pendingin **Thermoelectric Cooler (Peltier TEC1-12706)**, algoritma **PID Controller**, dan **Proteksi Overheat Bertahap Multi-Tingkat**. Sistem ini dilengkapi antarmuka ganda: layar **LCD Karakter 16×2 I2C** langsung pada alat dan **Web Dashboard Modern Responsif** (Wi-Fi lokal) bergaya estetika Generative AI (Dark Theme + AI Teal `#00A67E`), serta **Developer Mode & MATLAB Telemetry Engine** terintegrasi.
+AquaTEC adalah sistem pengatur suhu air aquascape berbasis mikrokontroler **ESP32** menggunakan elemen pendingin **Thermoelectric Cooler (Peltier TEC1-12706)**, algoritma **PID Controller**, dan **Proteksi Overheat Bertahap Multi-Tingkat**. Sistem ini dilengkapi antarmuka ganda: layar **LCD Karakter 16×2 I2C** langsung pada alat dan **Web Dashboard Modern Responsif**
 
 ---
 
